@@ -3,12 +3,12 @@ package com.example.myapplication
 import MyDataItem
 import android.os.Bundle
 import android.util.Log
-import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.gson.Gson
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -17,17 +17,26 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 val BASE_URL = "https://jsonplaceholder.typicode.com/"
 const val TAG = "MainActivity"
+
 class MainActivity : AppCompatActivity() {
-    private lateinit var txtId: TextView  // TextView-Referenz
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var personAdapter: PersonAdapter
+    private val personList = mutableListOf<MyDataItem>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        txtId = findViewById(R.id.txtId)
 
-        getMyData();
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+        recyclerView = findViewById(R.id.recyclerView)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        personAdapter = PersonAdapter(personList)
+        recyclerView.adapter = personAdapter
+
+        getMyData()
+
+        // Set WindowInsetsListener on the root view of the activity
+        ViewCompat.setOnApplyWindowInsetsListener(recyclerView) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
@@ -35,34 +44,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getMyData() {
-      val retrofitBuilder = Retrofit.Builder()
-          .addConverterFactory(GsonConverterFactory.create())
-          .baseUrl(BASE_URL)
-          .build()
-          .create(Api::class.java)
+        val retrofitBuilder = Retrofit.Builder()
+            .addConverterFactory(GsonConverterFactory.create())
+            .baseUrl(BASE_URL)
+            .build()
+            .create(Api::class.java)
+
         val retrofitData = retrofitBuilder.getData()
-        // Asynchrone Anfrage
         retrofitData.enqueue(object : Callback<List<MyDataItem>?> {
-            override fun onResponse(call: Call<List<MyDataItem>?>, response: Response<List<MyDataItem>?>) {
+            override fun onResponse(
+                call: Call<List<MyDataItem>?>,
+                response: Response<List<MyDataItem>?>
+            ) {
                 val responseBody = response.body()!!
-                val myStringBuilder = StringBuilder()
-
-                for( MyData in responseBody){
-                    myStringBuilder.append(MyData.id)
-                    myStringBuilder.append('\n')
-                }
-                runOnUiThread {
-                    txtId.text = myStringBuilder.toString()
-                }
-
+                personList.clear()
+                personList.addAll(responseBody)
+                personAdapter.notifyDataSetChanged()
             }
 
             override fun onFailure(call: Call<List<MyDataItem>?>, t: Throwable) {
-
                 Log.e(TAG, "onFailure: " + t.message)
                 t.printStackTrace()
             }
         })
-
     }
 }
